@@ -1,0 +1,363 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #e8eef2;
+  --bg-accent: #d5e3ea;
+  --surface: #f7fafc;
+  --ink: #14212b;
+  --muted: #5a6b76;
+  --line: #b7c5ce;
+  --accent: #0f6b5c;
+  --accent-ink: #ffffff;
+  --danger: #9b2c2c;
+  --danger-bg: #fde8e8;
+  --match: #e6f4f1;
+  --shadow: 0 10px 30px rgba(20, 33, 43, 0.08);
+}
+
+@theme inline {
+  --font-sans: var(--font-source-sans);
+  --font-display: var(--font-source-serif);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: var(--font-sans), "Segoe UI", sans-serif;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, #c9dde8 0%, transparent 55%),
+    radial-gradient(900px 420px at 100% 0%, #cfe8e2 0%, transparent 50%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg-accent) 100%);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.brand {
+  margin: 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+}
+
+.app-shell {
+  width: min(960px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1.5rem 0 3rem;
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.app-header h1,
+.login-panel h1,
+.result-heading h2 {
+  margin: 0.15rem 0 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.app-header h1 {
+  font-size: 1.35rem;
+}
+
+.ghost-btn {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+}
+
+.ghost-btn:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.counter-main,
+.login-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.counter-main {
+  padding: 1.25rem 1.25rem 1.5rem;
+}
+
+.sku-form label,
+.login-form label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.sku-row {
+  display: flex;
+  gap: 0.65rem;
+}
+
+.sku-row input,
+.login-form input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.85rem 0.95rem;
+  background: #fff;
+  color: var(--ink);
+}
+
+.sku-row input {
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+}
+
+.sku-row button,
+.login-form button,
+.print-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.85rem 1.1rem;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.sku-row button:disabled,
+.login-form button:disabled,
+.print-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.hint-state {
+  margin: 1.25rem 0 0;
+  color: var(--muted);
+}
+
+.error-panel {
+  margin-top: 1.25rem;
+  padding: 0.95rem 1rem;
+  border-radius: 10px;
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.error-panel p {
+  margin: 0;
+}
+
+.error-detail {
+  margin-top: 0.45rem !important;
+  color: #6b3030;
+}
+
+.result-panel {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.result-heading h2 {
+  font-size: 1.7rem;
+}
+
+.meta-line {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+.id-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.id-grid div {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.id-grid dt {
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.id-grid dd {
+  margin: 0.3rem 0 0;
+  word-break: break-word;
+  font-weight: 600;
+}
+
+.variants-block h3,
+.barcode-block h3 {
+  margin: 0 0 0.65rem;
+  font-size: 1rem;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+th,
+td {
+  padding: 0.7rem 0.8rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: #f0f5f8;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tr.sku-match {
+  background: var(--match);
+  font-weight: 650;
+}
+
+.barcode-block {
+  display: grid;
+  gap: 0.85rem;
+  justify-items: start;
+}
+
+.barcode-preview {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.barcode-caption {
+  margin: 0.5rem 0 0;
+  font-weight: 600;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.login-panel {
+  width: min(420px, 100%);
+  padding: 1.75rem 1.5rem 1.6rem;
+}
+
+.login-sub {
+  margin: 0.55rem 0 1.25rem;
+  color: var(--muted);
+}
+
+.login-form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.form-error {
+  margin: 0;
+  color: var(--danger);
+}
+
+.print-label {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .sku-row {
+    flex-direction: column;
+  }
+
+  .id-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-header {
+    flex-direction: column;
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-label {
+    display: block;
+    width: 3.5in;
+    padding: 0.15in;
+    color: #000;
+  }
+
+  .print-name {
+    margin: 0 0 0.12in;
+    font-family: var(--font-display), Georgia, serif;
+    font-size: 14pt;
+    font-weight: 700;
+  }
+
+  .print-barcode {
+    width: 100%;
+    max-width: 3.2in;
+  }
+
+  .print-meta {
+    margin: 0.1in 0 0;
+    font-size: 10pt;
+  }
+}

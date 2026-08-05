@@ -55,7 +55,11 @@ Open [http://localhost:3000](http://localhost:3000), sign in with `SHOP_PASSWORD
 3. Optionally enter a **Toast SKU** to print a barcode and/or **Save Toast link**.
 4. Live prices come from JustTCG name search — Toast SKU is only for barcodes/linking.
 
-Mappings (when saved) are stored in `data/sku-map.json` on the server.
+## Persistence rule
+
+**Only** `Toast SKU` + `card name` are saved (`data/sku-map.json`).
+
+JustTCG prices, variants, and API identifiers are fetched live for display/print and are **never** written to disk.
 
 ## Deploy (Vercel)
 

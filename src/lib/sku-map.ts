@@ -1,13 +1,12 @@
 import { promises as fs } from "fs";
 import path from "path";
 
+/**
+ * Only Toast SKU + card name are persisted.
+ * JustTCG prices and API identifiers are never stored.
+ */
 export interface SkuMapping {
   toastSku: string;
-  /** JustTCG card id (slug) */
-  cardId: string;
-  tcgplayerId: string | null;
-  /** Specific variant SKU when linked to one condition/printing */
-  tcgplayerSkuId: string | null;
   cardName: string;
   linkedAt: string;
 }
@@ -20,6 +19,25 @@ const DATA_DIR = path.join(process.cwd(), "data");
 const MAP_PATH = path.join(DATA_DIR, "sku-map.json");
 
 let writeQueue: Promise<void> = Promise.resolve();
+
+function sanitizeMapping(raw: unknown): SkuMapping | null {
+  if (!raw || typeof raw !== "object") return null;
+  const record = raw as Record<string, unknown>;
+  const toastSku =
+    typeof record.toastSku === "string" ? record.toastSku.trim() : "";
+  const cardName =
+    typeof record.cardName === "string" ? record.cardName.trim() : "";
+  if (!toastSku || !cardName) return null;
+
+  return {
+    toastSku,
+    cardName,
+    linkedAt:
+      typeof record.linkedAt === "string" && record.linkedAt
+        ? record.linkedAt
+        : new Date().toISOString(),
+  };
+}
 
 async function ensureStore(): Promise<void> {
   await fs.mkdir(DATA_DIR, { recursive: true });
@@ -35,8 +53,15 @@ async function readMap(): Promise<SkuMapFile> {
   await ensureStore();
   const raw = await fs.readFile(MAP_PATH, "utf8");
   try {
-    const parsed = JSON.parse(raw) as SkuMapFile;
-    return { mappings: parsed.mappings ?? {} };
+    const parsed = JSON.parse(raw) as { mappings?: Record<string, unknown> };
+    const mappings: Record<string, SkuMapping> = {};
+    for (const [key, value] of Object.entries(parsed.mappings ?? {})) {
+      const cleaned = sanitizeMapping(value);
+      if (cleaned) {
+        mappings[key] = cleaned;
+      }
+    }
+    return { mappings };
   } catch {
     return { mappings: {} };
   }
@@ -44,8 +69,14 @@ async function readMap(): Promise<SkuMapFile> {
 
 async function writeMap(data: SkuMapFile): Promise<void> {
   await ensureStore();
+  // Strip anything except toastSku + cardName (+ linkedAt metadata).
+  const cleaned: SkuMapFile = { mappings: {} };
+  for (const [key, value] of Object.entries(data.mappings)) {
+    const mapping = sanitizeMapping(value);
+    if (mapping) cleaned.mappings[key] = mapping;
+  }
   const tmp = `${MAP_PATH}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(data, null, 2), "utf8");
+  await fs.writeFile(tmp, JSON.stringify(cleaned, null, 2), "utf8");
   await fs.rename(tmp, MAP_PATH);
 }
 
@@ -65,7 +96,8 @@ export async function upsertMapping(
   mapping: Omit<SkuMapping, "linkedAt"> & { linkedAt?: string },
 ): Promise<SkuMapping> {
   const saved: SkuMapping = {
-    ...mapping,
+    toastSku: mapping.toastSku.trim(),
+    cardName: mapping.cardName.trim(),
     linkedAt: mapping.linkedAt ?? new Date().toISOString(),
   };
 

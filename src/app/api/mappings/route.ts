@@ -19,37 +19,23 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
       toastSku?: string;
-      cardId?: string;
-      tcgplayerId?: string | null;
-      tcgplayerSkuId?: string | null;
       cardName?: string;
     };
 
     const toastSku = body.toastSku?.trim() ?? "";
-    const cardId = body.cardId?.trim() ?? "";
     const cardName = body.cardName?.trim() ?? "";
 
-    if (!toastSku || !cardId || !cardName) {
+    if (!toastSku || !cardName) {
       return jsonError(
-        "toastSku, cardId, and cardName are required to create a link.",
+        "Only toastSku and cardName can be saved.",
         400,
         "bad_request",
       );
     }
 
-    const mapping = await upsertMapping({
-      toastSku,
-      cardId,
-      tcgplayerId: body.tcgplayerId?.trim() || null,
-      tcgplayerSkuId: body.tcgplayerSkuId?.trim() || null,
-      cardName,
-    });
-
+    const mapping = await upsertMapping({ toastSku, cardName });
     const dto: SkuMappingDto = {
       toastSku: mapping.toastSku,
-      cardId: mapping.cardId,
-      tcgplayerId: mapping.tcgplayerId,
-      tcgplayerSkuId: mapping.tcgplayerSkuId,
       cardName: mapping.cardName,
       linkedAt: mapping.linkedAt,
     };

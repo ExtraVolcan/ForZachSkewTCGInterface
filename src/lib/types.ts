@@ -22,18 +22,15 @@ export interface CardDto {
   variants: CardVariantDto[];
 }
 
+/** Persisted pair only — never includes JustTCG prices or API ids. */
 export interface SkuMappingDto {
   toastSku: string;
-  cardId: string;
-  tcgplayerId: string | null;
-  tcgplayerSkuId: string | null;
   cardName: string;
   linkedAt: string;
 }
 
 export interface LookupSuccess {
   toastSku: string;
-  /** @deprecated use toastSku — kept for older UI during transition */
   sku: string;
   mapping: SkuMappingDto;
   card: CardDto;

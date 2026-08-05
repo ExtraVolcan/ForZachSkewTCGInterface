@@ -11,24 +11,6 @@ function jsonError(
   return NextResponse.json({ error, code } satisfies LookupError, { status });
 }
 
-function toMappingDto(mapping: {
-  toastSku: string;
-  cardId: string;
-  tcgplayerId: string | null;
-  tcgplayerSkuId: string | null;
-  cardName: string;
-  linkedAt: string;
-}): SkuMappingDto {
-  return {
-    toastSku: mapping.toastSku,
-    cardId: mapping.cardId,
-    tcgplayerId: mapping.tcgplayerId,
-    tcgplayerSkuId: mapping.tcgplayerSkuId,
-    cardName: mapping.cardName,
-    linkedAt: mapping.linkedAt,
-  };
-}
-
 export async function GET(request: Request) {
   const client = getJustTcgClient();
   if (!client) {
@@ -50,20 +32,17 @@ export async function GET(request: Request) {
   const mapping = await getMapping(toastSku);
   if (!mapping) {
     return jsonError(
-      `No JustTCG link for Toast SKU ${toastSku}. Search for the card and link it once.`,
+      `No saved card name for Toast SKU ${toastSku}.`,
       404,
       "unmapped",
     );
   }
 
   try {
-    const params = mapping.tcgplayerSkuId
-      ? { tcgplayerSkuId: mapping.tcgplayerSkuId }
-      : mapping.tcgplayerId
-        ? { tcgplayerId: mapping.tcgplayerId }
-        : { cardId: mapping.cardId };
-
-    const response = await client.v1.cards.get(params);
+    // Live fetch only — prices are never read from disk.
+    const response = await client.v1.cards.search(mapping.cardName, {
+      limit: 20,
+    });
 
     if (response.error) {
       return jsonError(response.error, 502, "upstream");
@@ -72,16 +51,22 @@ export async function GET(request: Request) {
     const cards = response.data ?? [];
     if (cards.length === 0) {
       return jsonError(
-        `Mapped card not found in JustTCG for Toast SKU ${toastSku}. Try re-linking it.`,
+        `No live JustTCG results for saved name "${mapping.cardName}".`,
         404,
         "not_found",
       );
     }
 
+    const mappingDto: SkuMappingDto = {
+      toastSku: mapping.toastSku,
+      cardName: mapping.cardName,
+      linkedAt: mapping.linkedAt,
+    };
+
     const payload: LookupSuccess = {
       toastSku,
       sku: toastSku,
-      mapping: toMappingDto(mapping),
+      mapping: mappingDto,
       card: toCardDto(cards[0]),
     };
 

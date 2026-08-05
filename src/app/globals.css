@@ -307,6 +307,24 @@ tr.sku-match {
   display: grid;
   gap: 0.85rem;
   justify-items: start;
+  margin-top: 0.25rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+  width: 100%;
+}
+
+.barcode-sku-field {
+  width: min(420px, 100%);
+}
+
+.barcode-sku-field input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.85rem 0.95rem;
+  background: #fff;
+  color: var(--ink);
+  font-size: 1.15rem;
 }
 
 .barcode-preview {
@@ -314,11 +332,26 @@ tr.sku-match {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #fff;
+  width: min(420px, 100%);
+}
+
+.barcode-card-name {
+  margin: 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.barcode-price-line {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 650;
 }
 
 .barcode-caption {
   margin: 0.5rem 0 0;
   font-weight: 600;
+  color: var(--muted);
 }
 
 .login-page {
@@ -490,10 +523,21 @@ tr.sku-match {
   }
 
   .print-name {
-    margin: 0 0 0.12in;
+    margin: 0 0 0.06in;
     font-family: var(--font-display), Georgia, serif;
     font-size: 14pt;
     font-weight: 700;
+  }
+
+  .print-price {
+    margin: 0 0 0.04in;
+    font-size: 16pt;
+    font-weight: 700;
+  }
+
+  .print-variant {
+    margin: 0 0 0.1in;
+    font-size: 10pt;
   }
 
   .print-barcode {

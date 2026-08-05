@@ -1,13 +1,13 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BarcodeDisplay } from "@/components/BarcodeDisplay";
 import type {
   CardDto,
+  CardVariantDto,
   LookupError,
   SearchSuccess,
-  SkuMappingDto,
 } from "@/lib/types";
 
 function formatPrice(price: number | null): string {
@@ -43,13 +43,19 @@ function cardMeta(card: CardDto): string {
     .join(" · ");
 }
 
+function variantKey(variant: CardVariantDto, index: number): string {
+  return `${variant.condition}|${variant.printing}|${variant.tcgplayerSkuId ?? index}`;
+}
+
 export default function CounterPage() {
   const router = useRouter();
+  const barcodeSectionRef = useRef<HTMLElement | null>(null);
+
   const [cardName, setCardName] = useState("");
   const [toastSku, setToastSku] = useState("");
   const [searchResults, setSearchResults] = useState<CardDto[]>([]);
   const [selectedCard, setSelectedCard] = useState<CardDto | null>(null);
-  const [selectedVariantSku, setSelectedVariantSku] = useState<string | null>(
+  const [selectedVariant, setSelectedVariant] = useState<CardVariantDto | null>(
     null,
   );
   const [mappingNote, setMappingNote] = useState<string | null>(null);
@@ -61,20 +67,22 @@ export default function CounterPage() {
 
   const activeToastSku = toastSku.trim();
 
-  const labelVariant = useMemo(() => {
-    if (!selectedCard) return null;
-    if (selectedVariantSku) {
-      const exact = selectedCard.variants.find(
-        (v) => v.tcgplayerSkuId === selectedVariantSku,
-      );
-      if (exact) return exact;
-    }
-    return selectedCard.variants[0] ?? null;
-  }, [selectedCard, selectedVariantSku]);
+  const labelPrice = useMemo(
+    () => formatPrice(selectedVariant?.price ?? null),
+    [selectedVariant],
+  );
+
+  useEffect(() => {
+    if (!selectedCard || !barcodeSectionRef.current) return;
+    barcodeSectionRef.current.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+    });
+  }, [selectedCard, selectedVariant]);
 
   function resetSelection() {
     setSelectedCard(null);
-    setSelectedVariantSku(null);
+    setSelectedVariant(null);
     setMappingNote(null);
   }
 
@@ -82,7 +90,7 @@ export default function CounterPage() {
     event.preventDefault();
     const q = cardName.trim();
     if (!q) {
-      setError("Enter a card name to search JustTCG.");
+      setError("Enter a card name or number to search JustTCG.");
       setErrorCode("bad_request");
       return;
     }
@@ -110,7 +118,7 @@ export default function CounterPage() {
         setError("No JustTCG results. Try a shorter or different name.");
         setErrorCode("not_found");
       } else if (data.cards.length === 1) {
-        selectCard(data.cards[0], null);
+        selectCard(data.cards[0], data.cards[0].variants[0] ?? null);
       }
     } catch {
       setError("Could not reach JustTCG search.");
@@ -120,9 +128,9 @@ export default function CounterPage() {
     }
   }
 
-  function selectCard(card: CardDto, tcgplayerSkuId: string | null) {
+  function selectCard(card: CardDto, variant: CardVariantDto | null) {
     setSelectedCard(card);
-    setSelectedVariantSku(tcgplayerSkuId);
+    setSelectedVariant(variant ?? card.variants[0] ?? null);
     setMappingNote(null);
   }
 
@@ -138,23 +146,19 @@ export default function CounterPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           toastSku: activeToastSku,
-          cardId: selectedCard.id,
-          tcgplayerId: selectedCard.tcgplayerId,
-          tcgplayerSkuId: selectedVariantSku,
           cardName: selectedCard.name,
         }),
       });
-      const data = (await response.json()) as {
-        mapping?: SkuMappingDto;
-        error?: string;
-      };
+      const data = (await response.json()) as { error?: string };
 
       if (!response.ok) {
         setMappingNote(data.error ?? "Could not save Toast link.");
         return;
       }
 
-      setMappingNote(`Saved link: Toast SKU ${activeToastSku} → ${selectedCard.name}`);
+      setMappingNote(
+        `Saved pair only: Toast SKU ${activeToastSku} ↔ ${selectedCard.name} (no prices stored).`,
+      );
     } catch {
       setMappingNote("Could not save Toast link.");
     } finally {
@@ -174,8 +178,13 @@ export default function CounterPage() {
   }
 
   function onPrint() {
+    if (!activeToastSku) return;
     window.print();
   }
+
+  const selectedVariantKey = selectedVariant
+    ? variantKey(selectedVariant, 0)
+    : null;
 
   return (
     <>
@@ -198,7 +207,7 @@ export default function CounterPage() {
         <main className="counter-main">
           <form className="lookup-form" onSubmit={onSearch}>
             <div className="field">
-              <label htmlFor="card-name">Card name</label>
+              <label htmlFor="card-name">Card name / number</label>
               <input
                 id="card-name"
                 name="card-name"
@@ -214,7 +223,8 @@ export default function CounterPage() {
 
             <div className="field">
               <label htmlFor="toast-sku">
-                Toast SKU / barcode <span className="optional">(optional)</span>
+                Toast SKU / barcode{" "}
+                <span className="optional">(for print & save)</span>
               </label>
               <input
                 id="toast-sku"
@@ -237,11 +247,14 @@ export default function CounterPage() {
             </button>
           </form>
 
-          {!searching && searchResults.length === 0 && !error && !selectedCard ? (
+          {!searching &&
+          searchResults.length === 0 &&
+          !error &&
+          !selectedCard ? (
             <p className="hint-state">
-              Type a card name or collector number (like ST29-001) to pull live
-              JustTCG prices. Add a Toast SKU when you want a printable barcode
-              or to save a link.
+              Search by name or collector number for live JustTCG prices. Select
+              a card/price, then print a Toast barcode label. Only Toast SKU +
+              card name are ever saved — never prices.
             </p>
           ) : null}
 
@@ -275,13 +288,17 @@ export default function CounterPage() {
                     <li
                       key={result.id}
                       className={
-                        isSelected ? "search-result is-selected" : "search-result"
+                        isSelected
+                          ? "search-result is-selected"
+                          : "search-result"
                       }
                     >
                       <button
                         type="button"
                         className="result-select"
-                        onClick={() => selectCard(result, null)}
+                        onClick={() =>
+                          selectCard(result, result.variants[0] ?? null)
+                        }
                       >
                         <strong>{result.name}</strong>
                         <span>{cardMeta(result)}</span>
@@ -305,11 +322,18 @@ export default function CounterPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {result.variants.slice(0, 8).map((variant, index) => {
-                                const skuId = variant.tcgplayerSkuId ?? null;
-                                return (
+                              {result.variants
+                                .slice(0, 8)
+                                .map((variant, index) => (
                                   <tr
-                                    key={`${result.id}-${variant.condition}-${variant.printing}-${skuId ?? index}`}
+                                    key={variantKey(variant, index)}
+                                    className={
+                                      isSelected &&
+                                      selectedVariantKey ===
+                                        variantKey(variant, index)
+                                        ? "sku-match"
+                                        : undefined
+                                    }
                                   >
                                     <td>{variant.condition}</td>
                                     <td>
@@ -324,15 +348,14 @@ export default function CounterPage() {
                                         type="button"
                                         className="link-variant-btn"
                                         onClick={() =>
-                                          selectCard(result, skuId)
+                                          selectCard(result, variant)
                                         }
                                       >
-                                        Select
+                                        Select price
                                       </button>
                                     </td>
                                   </tr>
-                                );
-                              })}
+                                ))}
                             </tbody>
                           </table>
                         </div>
@@ -361,19 +384,18 @@ export default function CounterPage() {
                   <dd>{selectedCard.tcgplayerId ?? "—"}</dd>
                 </div>
                 <div>
-                  <dt>Toast SKU</dt>
-                  <dd>{activeToastSku || "—"}</dd>
+                  <dt>Selected price</dt>
+                  <dd>
+                    {labelPrice}
+                    {selectedVariant
+                      ? ` · ${selectedVariant.condition} / ${selectedVariant.printing}`
+                      : ""}
+                  </dd>
                 </div>
               </dl>
 
-              {selectedVariantSku ? (
-                <p className="meta-line">
-                  Selected variant SKU: <code>{selectedVariantSku}</code>
-                </p>
-              ) : null}
-
               <div className="variants-block">
-                <h3>Price variants</h3>
+                <h3>Price variants (live — not saved)</h3>
                 {selectedCard.variants.length === 0 ? (
                   <p className="hint-state">
                     No variant pricing returned for this card.
@@ -389,80 +411,131 @@ export default function CounterPage() {
                           <th>24h</th>
                           <th>7d</th>
                           <th>Updated</th>
+                          <th />
                         </tr>
                       </thead>
                       <tbody>
-                        {selectedCard.variants.map((variant, index) => (
-                          <tr
-                            key={`${variant.condition}-${variant.printing}-${variant.tcgplayerSkuId ?? index}`}
-                            className={
-                              selectedVariantSku &&
-                              variant.tcgplayerSkuId === selectedVariantSku
-                                ? "sku-match"
-                                : undefined
-                            }
-                          >
-                            <td>{variant.condition}</td>
-                            <td>
-                              {variant.printing}
-                              {variant.language
-                                ? ` (${variant.language})`
-                                : ""}
-                            </td>
-                            <td>{formatPrice(variant.price)}</td>
-                            <td>{formatChange(variant.priceChange24hr)}</td>
-                            <td>{formatChange(variant.priceChange7d)}</td>
-                            <td>{formatUpdated(variant.lastUpdated)}</td>
-                          </tr>
-                        ))}
+                        {selectedCard.variants.map((variant, index) => {
+                          const key = variantKey(variant, index);
+                          const isActive =
+                            selectedVariantKey === key ||
+                            (selectedVariant !== null &&
+                              selectedVariant.condition === variant.condition &&
+                              selectedVariant.printing === variant.printing &&
+                              selectedVariant.tcgplayerSkuId ===
+                                variant.tcgplayerSkuId);
+                          return (
+                            <tr
+                              key={key}
+                              className={isActive ? "sku-match" : undefined}
+                            >
+                              <td>{variant.condition}</td>
+                              <td>
+                                {variant.printing}
+                                {variant.language
+                                  ? ` (${variant.language})`
+                                  : ""}
+                              </td>
+                              <td>{formatPrice(variant.price)}</td>
+                              <td>{formatChange(variant.priceChange24hr)}</td>
+                              <td>{formatChange(variant.priceChange7d)}</td>
+                              <td>{formatUpdated(variant.lastUpdated)}</td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="link-variant-btn"
+                                  onClick={() =>
+                                    selectCard(selectedCard, variant)
+                                  }
+                                >
+                                  Use on label
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                 )}
               </div>
 
-              {activeToastSku ? (
-                <div className="barcode-block">
-                  <h3>Barcode label (Toast SKU)</h3>
-                  <div className="barcode-preview">
-                    <BarcodeDisplay
-                      value={activeToastSku}
-                      className="barcode-svg"
-                    />
-                    <p className="barcode-caption">
-                      {selectedCard.name}
-                      {labelVariant
-                        ? ` · ${formatPrice(labelVariant.price)}`
-                        : ""}
-                    </p>
-                  </div>
-                  <div className="barcode-actions">
-                    <button
-                      type="button"
-                      className="print-btn"
-                      onClick={onPrint}
-                    >
-                      Print label
-                    </button>
-                    <button
-                      type="button"
-                      className="ghost-btn"
-                      onClick={() => void saveToastLink()}
-                      disabled={linking}
-                    >
-                      {linking ? "Saving link…" : "Save Toast link"}
-                    </button>
-                  </div>
-                  {mappingNote ? (
-                    <p className="hint-state">{mappingNote}</p>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="hint-state">
-                  Add an optional Toast SKU above to print a barcode or save a
-                  link for later.
+              <section
+                className="barcode-block"
+                ref={barcodeSectionRef}
+                id="barcode-label"
+              >
+                <h3>Barcode label</h3>
+                <p className="meta-line">
+                  Encodes the Toast SKU. Label shows the live selected price for
+                  printing only — prices are never saved.
                 </p>
-              )}
+
+                {!activeToastSku ? (
+                  <div className="field barcode-sku-field">
+                    <label htmlFor="toast-sku-barcode">
+                      Enter Toast SKU to generate barcode
+                    </label>
+                    <input
+                      id="toast-sku-barcode"
+                      name="toast-sku-barcode"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      placeholder="e.g. 413845783982"
+                      value={toastSku}
+                      onChange={(e) => setToastSku(e.target.value)}
+                    />
+                  </div>
+                ) : null}
+
+                {activeToastSku ? (
+                  <>
+                    <div className="barcode-preview">
+                      <p className="barcode-card-name">{selectedCard.name}</p>
+                      <p className="barcode-price-line">
+                        {labelPrice}
+                        {selectedVariant
+                          ? ` · ${selectedVariant.condition} / ${selectedVariant.printing}`
+                          : ""}
+                      </p>
+                      <BarcodeDisplay
+                        value={activeToastSku}
+                        className="barcode-svg"
+                      />
+                      <p className="barcode-caption">
+                        Toast SKU {activeToastSku}
+                      </p>
+                    </div>
+                    <div className="barcode-actions">
+                      <button
+                        type="button"
+                        className="print-btn"
+                        onClick={onPrint}
+                      >
+                        Print barcode label
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-btn"
+                        onClick={() => void saveToastLink()}
+                        disabled={linking}
+                      >
+                        {linking
+                          ? "Saving…"
+                          : "Save Toast SKU + card name"}
+                      </button>
+                    </div>
+                    {mappingNote ? (
+                      <p className="hint-state">{mappingNote}</p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="hint-state">
+                    Add a Toast SKU above to display and print the barcode for
+                    this selected card/price.
+                  </p>
+                )}
+              </section>
             </section>
           ) : null}
         </main>
@@ -471,14 +544,14 @@ export default function CounterPage() {
       {selectedCard && activeToastSku ? (
         <div className="print-label" aria-hidden="true">
           <p className="print-name">{selectedCard.name}</p>
+          <p className="print-price">{labelPrice}</p>
+          {selectedVariant ? (
+            <p className="print-variant">
+              {selectedVariant.condition} / {selectedVariant.printing}
+            </p>
+          ) : null}
           <BarcodeDisplay value={activeToastSku} className="print-barcode" />
-          <p className="print-meta">
-            Toast SKU {activeToastSku}
-            {labelVariant ? ` · ${formatPrice(labelVariant.price)}` : ""}
-            {labelVariant
-              ? ` · ${labelVariant.condition} / ${labelVariant.printing}`
-              : ""}
-          </p>
+          <p className="print-meta">Toast SKU {activeToastSku}</p>
         </div>
       ) : null}
     </>

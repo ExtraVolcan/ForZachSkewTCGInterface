@@ -40,3 +40,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local Toast SKU ↔ JustTCG mappings (shop data)
+/data/sku-map.json
+/data/sku-map.json.tmp

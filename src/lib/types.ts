@@ -22,12 +22,29 @@ export interface CardDto {
   variants: CardVariantDto[];
 }
 
+export interface SkuMappingDto {
+  toastSku: string;
+  cardId: string;
+  tcgplayerId: string | null;
+  tcgplayerSkuId: string | null;
+  cardName: string;
+  linkedAt: string;
+}
+
 export interface LookupSuccess {
+  toastSku: string;
+  /** @deprecated use toastSku — kept for older UI during transition */
   sku: string;
+  mapping: SkuMappingDto;
   card: CardDto;
 }
 
 export interface LookupError {
   error: string;
-  code?: "not_found" | "config" | "upstream" | "bad_request";
+  code?: "not_found" | "unmapped" | "config" | "upstream" | "bad_request";
+}
+
+export interface SearchSuccess {
+  query: string;
+  cards: CardDto[];
 }

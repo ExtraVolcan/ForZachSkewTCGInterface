@@ -42,7 +42,8 @@ export default function LoginPage() {
         <p className="brand">SKU Counter</p>
         <h1>Shop login</h1>
         <p className="login-sub">
-          Enter the shared shop password to look up cards and print barcodes.
+          Enter the shared shop password to search cards by name and print
+          barcodes.
         </p>
         <form onSubmit={onSubmit} className="login-form">
           <label htmlFor="password">Password</label>

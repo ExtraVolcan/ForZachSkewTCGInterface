@@ -1,13 +1,22 @@
 # SKU Counter
 
-Internal counter tool for looking up TCGplayer SKUs via [JustTCG](https://justtcg.com), viewing live price data, and printing barcode labels.
+Internal counter tool for Toast barcodes: link each shop SKU to a JustTCG card once, then look up live prices and print barcode labels.
+
+## Why mapping is required
+
+Toast generates its own barcode/SKU numbers when an item is created. Those are **not** TCGplayer or JustTCG IDs. The app stores a local map:
+
+`Toast SKU` → `JustTCG card / TCGplayer IDs`
+
+After a barcode is linked, counter staff only need the Toast number.
 
 ## Features
 
 - Shared shop password login (multiple people can use it at once)
-- SKU lookup against JustTCG (`tcgplayerSkuId`)
+- Card name search against JustTCG (approximate match)
+- Optional Toast SKU for barcode printing and saving a link
 - Card name, JustTCG ID, set/game, and variant pricing
-- On-screen barcode with browser **Print label** support
+- On-screen barcode of the Toast SKU with browser **Print label** support
 
 ## Setup
 
@@ -31,37 +40,33 @@ Required variables:
 | `SHOP_PASSWORD` | Shared password for counter staff |
 | `SESSION_SECRET` | Random string, **at least 32 characters**, used to encrypt the session cookie |
 
-Example:
-
-```env
-JUSTTCG_API_KEY=tcg_your_key_here
-SHOP_PASSWORD=your-shop-password
-SESSION_SECRET=replace-with-a-long-random-secret-at-least-32-chars
-```
-
 3. Run locally:
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), sign in with `SHOP_PASSWORD`, enter a TCGplayer SKU from Toast, then use **Print label**.
+Open [http://localhost:3000](http://localhost:3000), sign in with `SHOP_PASSWORD`.
+
+## Counter workflow
+
+1. Enter an approximate **card name** (required) and click **Search JustTCG**.
+2. Pick the matching result (or a specific price variant).
+3. Optionally enter a **Toast SKU** to print a barcode and/or **Save Toast link**.
+4. Live prices come from JustTCG name search — Toast SKU is only for barcodes/linking.
+
+Mappings (when saved) are stored in `data/sku-map.json` on the server.
 
 ## Deploy (Vercel)
 
-1. Push this repo and import the project in Vercel.
-2. Set `JUSTTCG_API_KEY`, `SHOP_PASSWORD`, and `SESSION_SECRET` in the Vercel project environment variables.
-3. Deploy. Staff open the site URL, log in, and look up SKUs.
+File-based mappings work best on a long-lived host (VPS, always-on machine). On Vercel’s serverless filesystem, writes to `data/sku-map.json` do **not** persist reliably across invocations.
 
-## Usage at the counter
+For Vercel production, plan to move the map to a small database (Turso, Postgres, or KV) later. Local / single-server deploy is fine for v1.
 
-1. Sign in with the shared shop password.
-2. Paste or type the SKU from Toast.
-3. Review card info and live prices.
-4. Click **Print label** (or use the browser print dialog) to print the barcode.
+Set `JUSTTCG_API_KEY`, `SHOP_PASSWORD`, and `SESSION_SECRET` in the host environment.
 
 ## Notes
 
 - The JustTCG API key never leaves the server.
-- Until `JUSTTCG_API_KEY` is set, lookups return a clear configuration error.
-- Printing uses the browser print dialog with a label-sized stylesheet (about 3.5" wide). Choose your label printer in the print dialog.
+- Until `JUSTTCG_API_KEY` is set, lookups/search return a clear configuration error.
+- Printing uses the browser print dialog with a label-sized stylesheet (about 3.5" wide).

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { JustTCG } from "justtcg-js";
-import type { CardDto, LookupError } from "@/lib/types";
+import { getJustTcgClient, toCardDto } from "@/lib/justtcg";
+import { getMapping } from "@/lib/sku-map";
+import type { LookupError, LookupSuccess, SkuMappingDto } from "@/lib/types";
 
 function jsonError(
   error: string,
@@ -10,9 +11,27 @@ function jsonError(
   return NextResponse.json({ error, code } satisfies LookupError, { status });
 }
 
+function toMappingDto(mapping: {
+  toastSku: string;
+  cardId: string;
+  tcgplayerId: string | null;
+  tcgplayerSkuId: string | null;
+  cardName: string;
+  linkedAt: string;
+}): SkuMappingDto {
+  return {
+    toastSku: mapping.toastSku,
+    cardId: mapping.cardId,
+    tcgplayerId: mapping.tcgplayerId,
+    tcgplayerSkuId: mapping.tcgplayerSkuId,
+    cardName: mapping.cardName,
+    linkedAt: mapping.linkedAt,
+  };
+}
+
 export async function GET(request: Request) {
-  const apiKey = process.env.JUSTTCG_API_KEY?.trim();
-  if (!apiKey) {
+  const client = getJustTcgClient();
+  if (!client) {
     return jsonError(
       "JUSTTCG_API_KEY is not configured. Add it to your environment and restart the server.",
       503,
@@ -21,57 +40,52 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const sku = searchParams.get("sku")?.trim() ?? "";
+  const toastSku = (searchParams.get("sku") ?? searchParams.get("toastSku") ?? "")
+    .trim();
 
-  if (!sku) {
-    return jsonError("Enter a TCGplayer SKU to look up.", 400, "bad_request");
+  if (!toastSku) {
+    return jsonError("Enter a Toast SKU to look up.", 400, "bad_request");
+  }
+
+  const mapping = await getMapping(toastSku);
+  if (!mapping) {
+    return jsonError(
+      `No JustTCG link for Toast SKU ${toastSku}. Search for the card and link it once.`,
+      404,
+      "unmapped",
+    );
   }
 
   try {
-    const client = new JustTCG({ apiKey });
-    const response = await client.v1.cards.get({ tcgplayerSkuId: sku });
+    const params = mapping.tcgplayerSkuId
+      ? { tcgplayerSkuId: mapping.tcgplayerSkuId }
+      : mapping.tcgplayerId
+        ? { tcgplayerId: mapping.tcgplayerId }
+        : { cardId: mapping.cardId };
+
+    const response = await client.v1.cards.get(params);
 
     if (response.error) {
-      const message =
-        typeof response.error === "string"
-          ? response.error
-          : "JustTCG lookup failed.";
-      return jsonError(message, 502, "upstream");
+      return jsonError(response.error, 502, "upstream");
     }
 
     const cards = response.data ?? [];
     if (cards.length === 0) {
       return jsonError(
-        `No card found for SKU ${sku}.`,
+        `Mapped card not found in JustTCG for Toast SKU ${toastSku}. Try re-linking it.`,
         404,
         "not_found",
       );
     }
 
-    const card = cards[0];
-    const dto: CardDto = {
-      id: card.id,
-      uuid: card.uuid,
-      name: card.name,
-      game: card.game,
-      set: card.set,
-      setName: card.set_name,
-      number: card.number,
-      rarity: card.rarity,
-      tcgplayerId: card.tcgplayerId,
-      variants: (card.variants ?? []).map((variant) => ({
-        condition: variant.condition,
-        printing: variant.printing,
-        language: variant.language ?? null,
-        tcgplayerSkuId: variant.tcgplayerSkuId,
-        price: variant.price ?? null,
-        lastUpdated: variant.lastUpdated ?? null,
-        priceChange24hr: variant.priceChange24hr,
-        priceChange7d: variant.priceChange7d,
-      })),
+    const payload: LookupSuccess = {
+      toastSku,
+      sku: toastSku,
+      mapping: toMappingDto(mapping),
+      card: toCardDto(cards[0]),
     };
 
-    return NextResponse.json({ sku, card });
+    return NextResponse.json(payload);
   } catch (error) {
     const message =
       error instanceof Error
